@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Coberturas IES · Generador por ausencias</title>
+  <style>
+    :root{--bg:#0b1020;--panel:#121a2c;--muted:#8ea0bf;--text:#e6eefc;--brand:#6aa9ff;--accent:#9df28c;--warn:#ffd36a;--danger:#ff7a7a;--chip:#1b2742}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0b1020 60%,#0e1630);color:var(--text)}
+    header{position:sticky;top:0;z-index:50;background:rgba(11,16,32,.85);backdrop-filter:saturate(120%) blur(8px);border-bottom:1px solid #1d2742}
+    .container{max-width:1200px;margin:auto;padding:18px}
+    h1{font-size:20px;margin:0;letter-spacing:.3px}
+    .grid{display:grid;gap:14px}
+    @media(min-width:900px){.grid-2{grid-template-columns:320px 1fr}}
+    .card{background:var(--panel);border:1px solid #1d2742;border-radius:16px;box-shadow:0 10px 30px rgba(5,10,20,.3);}
+    .card h2{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin:0 0 6px}
+    .card .body{padding:16px}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input[type="text"], select, button, .btn{font:inherit}
+    input[type="text"], select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #2a3555;background:#0f1730;color:var(--text)}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--chip);border:1px solid #243255;color:#cfe0ff;font-size:12px}
+    .pill button{all:unset;cursor:pointer;color:#9fbaff}
+    .muted{color:var(--muted)}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+    .toolbar .seg{display:inline-flex;border:1px solid #2a3555;border-radius:12px;overflow:hidden}
+    .seg button{padding:8px 12px;background:#0f1730;border:none;cursor:pointer;color:#cfe0ff}
+    .seg button[aria-pressed="true"]{background:#1a2444;color:#cfe0ff}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid #2a3555;background:#0f1730;color:#e6eefc;cursor:pointer}
+    .btn.primary{background:linear-gradient(180deg,#6aa9ff,#4d8ef0);border:none;color:#08142b}
+    .btn.ghost{background:#0f1730}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#0f1730;text-align:left;font-size:12px;color:#9bb0d8;border-bottom:1px solid #25335a;padding:10px}
+    tbody td{border-bottom:1px solid #1c294d;padding:10px;vertical-align:top}
+    tbody tr:hover{background:#0f1836}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;background:#0f1730;border:1px solid #2a3555;border-radius:6px;padding:1px 6px;color:#cfe0ff}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;border:1px solid #2a3555;background:#0f1730}
+    .ok{color:var(--accent)}.warn{color:var(--warn)}.danger{color:var(--danger)}
+    .hr{height:1px;background:#1d2742;margin:14px 0}
+    .upload-zone{border:1px dashed #355197;border-radius:12px;padding:14px;text-align:center;background:#0f1730}
+    .small{font-size:12px}
+    .alert{margin-top:8px;padding:10px 12px;border:1px solid #5a2;border-radius:10px;background:#0f1a0f;color:#cfe0cf;display:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container row" style="justify-content:space-between">
+      <h1>🎓 Coberturas IES · Generador por ausencias</h1>
+      <div class="muted small">Carga el horario TSV · Elige día y docentes ausentes · Exporta CSV</div>
+    </div>
+  </header>
+
+  <main class="container grid grid-2" style="margin-top:16px">
+    <section class="card">
+      <div class="body">
+        <h2>Datos</h2>
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept=".tsv,.txt" />
+          <div class="hint">Archivo con 6 columnas separadas por tabulador: <span class="kbd">Asignatura</span> <span class="kbd">Grupo</span> <span class="kbd">Aula</span> <span class="kbd">Docente</span> <span class="kbd">Dia</span> <span class="kbd">Hora</span></div>
+        </div>
+
+        <div id="dataOk" style="display:none;margin-top:10px" class="small">
+          ✅ Horario cargado. <span id="statClases" class="badge"></span> · <span id="statDocentes" class="badge"></span>
+        </div>
+        <div id="warnNoTeachers" class="alert">⚠️ Se ha cargado el archivo, pero no se han detectado docentes. Revisa el separador (tabulador) y que la columna 4 sea el nombre del docente.</div>
+
+        <div class="hr"></div>
+
+        <h2>Parámetros</h2>
+        <label for="daySel">Día</label>
+        <div class="toolbar">
+          <div class="seg" role="tablist" aria-label="Día de la semana">
+            <button class="dayBtn" data-day="L" aria-pressed="true">L</button>
+            <button class="dayBtn" data-day="M" aria-pressed="false">M</button>
+            <button class="dayBtn" data-day="X" aria-pressed="false">X</button>
+            <button class="dayBtn" data-day="J" aria-pressed="false">J</button>
+            <button class="dayBtn" data-day="V" aria-pressed="false">V</button>
+          </div>
+          <div class="seg" role="tablist" aria-label="Política de cobertura">
+            <button class="policyBtn" data-policy="any" aria-pressed="true" title="Marca cobertura si falta alguno, pero se ignora si queda otro docente presente">ANY</button>
+            <button class="policyBtn" data-policy="all" aria-pressed="false" title="Solo si faltan todos los docentes del slot">ALL</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:8px">
+          <label style="margin:0"><input type="checkbox" id="ignoreCoTeach" checked /> Ignorar cobertura si queda co-docente presente</label>
+          <label style="margin:0"><input type="checkbox" id="excludeSupport" /> Excluir APOYO/ÁMBITO/REFUERZO</label>
+        </div>
+
+        <label for="filter">Filtrar docentes</label>
+        <input type="text" id="filter" placeholder="Escribe para filtrar (apellidos o nombre)…" />
+
+        <label for="teachers">Docentes ausentes (selección múltiple)</label>
+        <div class="row">
+          <select id="teachers" multiple size="12" style="flex:1"></select>
+          <div class="grid" style="width:260px">
+            <button class="btn" id="btnAdd">➕ Añadir →</button>
+            <button class="btn" id="btnRemove">← Quitar</button>
+            <button class="btn ghost" id="btnClearSel">Limpiar selección</button>
+          </div>
+        </div>
+
+        <div class="row" id="chosenRow" style="margin-top:6px"></div>
+
+        <div class="hr"></div>
+        <div class="row">
+          <button class="btn primary" id="btnGenerate">⏵ Generar tabla</button>
+          <button class="btn" id="btnExport" disabled>⤓ Exportar CSV</button>
+        </div>
+        <div class="hint">Consejo: usa <span class="kbd">Ctrl/Cmd</span> para selección múltiple, o haz doble clic en un nombre para añadirlo rápido.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="body">
+        <h2>Resultado</h2>
+        <div id="summary" class="muted small" style="margin-bottom:8px">Carga un horario y selecciona ausencias para ver resultados.</div>
+        <div style="overflow:auto;max-height:70vh;border:1px solid #1d2742;border-radius:12px">
+          <table id="resultTable">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Grupo</th>
+                <th>Aula</th>
+                <th>Ausentes</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  // Utilidades
+  const dayNames = {L:'Lunes', M:'Martes', X:'Miércoles', J:'Jueves', V:'Viernes'};
+  const supportRegex = /(\bAPOYO\b|\bAPOYO PT\b|\bAMBITO\b|\bÁMBITO\b|\bATENCION EDUCATIVA\b|\bATENCIÓN EDUCATIVA\b|\bREFUERZO\b)/i;
+  const BREAK_SLOTS = new Set([4, 11]); // recreos: 11:15–11:45 y 18:00–18:15
+
+  // Mapeo de franjas -> texto de horas (mañana y tarde)
+  function slotToLabel(n){
+    const map = {
+      1: '08:15–09:15',
+      2: '09:15–10:15',
+      3: '10:15–11:15',
+      4: 'RECREO 11:15–11:45',
+      5: '11:45–12:45',
+      6: '12:45–13:45',
+      7: '13:45–14:45',
+      8: '15:00–16:00',
+      9: '16:00–17:00',
+      10: '17:00–18:00',
+      11: 'RECREO 18:00–18:15',
+      12: '18:15–19:15',
+      13: '19:15–20:15',
+      14: '20:15–21:15',
+    };
+    return map[n] || String(n);
+  }
+
+  function detectDelimiter(line){
+    const tabs = (line.match(/\t/g)||[]).length;
+    const semis = (line.match(/;/g)||[]).length;
+    return tabs >= semis ? '\t' : ';';
+  }
+
+  function cleanCell(s){
+    if(s==null) return '';
+    s = s.trim();
+    if((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))){
+      s = s.slice(1,-1);
+    }
+    return s.trim();
+  }
+
+  /** Parse TSV (6 cols) -> records */
+  function parseTSV(text){
+    const lines = text.split(/\r?\n/).filter(l=>l.trim().length>0);
+    if(!lines.length) return [];
+    const delim = detectDelimiter(lines[0]);
+    const recs = [];
+    for(let i=0;i<lines.length;i++){
+      const line = lines[i];
+      const parts = line.split(delim);
+      if(parts.length < 6) continue;
+      const maybeHora = Number(cleanCell(parts[5]));
+      if(i===0 && Number.isNaN(maybeHora)) continue;
+      const Asignatura = cleanCell(parts[0]);
+      const Grupo = cleanCell(parts[1]);
+      const Aula = cleanCell(parts[2]);
+      const Docente = cleanCell(parts[3]);
+      const Dia = cleanCell(parts[4]);
+      const Hora = Number(cleanCell(parts[5]));
+      recs.push({Asignatura, Grupo, Aula, Docente, Dia, Hora,
+                 Dia_full: dayNames[Dia]||Dia,
+                 Es_Apoyo_o_Ambito: supportRegex.test(Asignatura),
+                 SlotKey: `${Grupo} | ${Dia} | ${Hora}`});
+    }
+    return recs;
+  }
+
+  /** Compute coverage given parameters */
+  function computeCoverage(records, {day='L', absents=[], policy='any', excludeSupport=false, ignoreCoTeach=true}){
+    const dayRecs = records.filter(r => r.Dia === day && !BREAK_SLOTS.has(r.Hora) && (!excludeSupport || !r.Es_Apoyo_o_Ambito));
+    const bySlot = new Map();
+    for(const r of dayRecs){
+      if(!bySlot.has(r.SlotKey)) bySlot.set(r.SlotKey, {meta: {...r}, teachers: new Set(), subjects: new Set(), aulas: new Set()});
+      const s = bySlot.get(r.SlotKey);
+      s.teachers.add(r.Docente);
+      s.subjects.add(r.Asignatura);
+      if(r.Aula && r.Aula.trim()) s.aulas.add(r.Aula);
+    }
+
+    const out = [];
+    for(const [key, s] of bySlot){
+      const assigned = [...s.teachers].sort();
+      const aus = assigned.filter(t => absents.includes(t)).sort();
+      const pres = assigned.filter(t => !absents.includes(t)).sort();
+      let needs = false;
+      if(policy === 'all'){
+        needs = assigned.length>0 && aus.length === assigned.length;
+      }else{
+        needs = aus.length>0;
+        if(ignoreCoTeach) needs = needs && pres.length === 0;
+      }
+      if(needs){
+        out.push({
+          Dia_full: s.meta.Dia_full,
+          Dia: s.meta.Dia,
+          Hora: s.meta.Hora,
+          Grupo: s.meta.Grupo,
+          Aula: [...s.aulas].join(', '),
+          Asignaturas: [...s.subjects].sort().join(', '),
+          Docentes_asignados: assigned.join(' · '),
+          Docentes_presentes: pres.join(' · '),
+          Docentes_ausentes: aus.join(' · '),
+          SlotKey: key
+        });
+      }
+    }
+    out.sort((a,b)=> a.Hora - b.Hora || a.Grupo.localeCompare(b.Grupo));
+    return out;
+  }
+
+  function toCSV(rows){
+    if(!rows.length) return '';
+    const headers = Object.keys(rows[0]);
+    const esc = v => '\"'+String(v??'').replace(/\"/g,'\"\"')+'\"';
+    const lines = [headers.map(esc).join(',')];
+    for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); }
+    return lines.join('\n');
+  }
+
+  // State
+  let records = [];
+  let teachers = [];
+  let chosen = new Set();
+  let state = {day:'L', policy:'any', ignoreCoTeach:true, excludeSupport:false};
+
+  // DOM refs
+  const $file = document.getElementById('fileInput');
+  const $dataOk = document.getElementById('dataOk');
+  const $warnNoTeachers = document.getElementById('warnNoTeachers');
+  const $statClases = document.getElementById('statClases');
+  const $statDocentes = document.getElementById('statDocentes');
+  const $filter = document.getElementById('filter');
+  const $teachers = document.getElementById('teachers');
+  const $chosenRow = document.getElementById('chosenRow');
+  const $btnAdd = document.getElementById('btnAdd');
+  const $btnRemove = document.getElementById('btnRemove');
+  const $btnClearSel = document.getElementById('btnClearSel');
+  const $btnGenerate = document.getElementById('btnGenerate');
+  const $btnExport = document.getElementById('btnExport');
+  const $summary = document.getElementById('summary');
+  const $tbody = document.querySelector('#resultTable tbody');
+
+  // Handlers
+  $file.addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const text = String(reader.result).replace(/\u0000/g,'');
+        records = parseTSV(text);
+        teachers = [...new Set(records.map(r=>r.Docente).filter(Boolean))].sort((a,b)=> a.localeCompare(b,'es',{sensitivity:'base'}));
+        renderTeacherOptions();
+        $dataOk.style.display = 'block';
+        $warnNoTeachers.style.display = teachers.length ? 'none' : 'block';
+        $statClases.textContent = `${records.length} filas`;
+        $statDocentes.textContent = `${teachers.length} docentes`;
+        $summary.textContent = 'Horario cargado. (Recreos excluidos) Selecciona día y docentes ausentes para generar la tabla.';
+        console.debug('[Coberturas] Cargado:', {filas: records.length, docentes: teachers.length, ejemplo: records[0]});
+      }catch(err){
+        console.error('Error procesando el fichero:', err);
+        alert('No se ha podido procesar el fichero. Revisa el separador/columnas.');
+      }
+    };
+    reader.readAsText(f, 'latin1');
+  });
+
+  function renderTeacherOptions(){
+    const term = $filter.value.trim().toLowerCase();
+    $teachers.innerHTML='';
+    for(const t of teachers){
+      if(term && !t.toLowerCase().includes(term)) continue;
+      if(chosen.has(t)) continue;
+      const opt = document.createElement('option');
+      opt.value=t; opt.textContent=t;
+      $teachers.appendChild(opt);
+    }
+    renderChosenPills();
+  }
+
+  function renderChosenPills(){
+    $chosenRow.innerHTML='';
+    if(chosen.size===0){
+      const span = document.createElement('span');
+      span.className='muted small';
+      span.textContent='(Sin ausencias seleccionadas)';
+      $chosenRow.appendChild(span);
+      return;
+    }
+    for(const t of [...chosen].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}))){
+      const pill = document.createElement('span');
+      pill.className='pill';
+      pill.innerHTML = `<span>👤</span><span>${t}</span>`;
+      const x = document.createElement('button');
+      x.textContent='✕';
+      x.title='Quitar';
+      x.onclick = ()=>{ chosen.delete(t); renderTeacherOptions(); };
+      pill.appendChild(x);
+      $chosenRow.appendChild(pill);
+    }
+  }
+
+  $filter.addEventListener('input', renderTeacherOptions);
+
+  // Doble clic para añadir
+  $teachers.addEventListener('dblclick', (e)=>{
+    const target = e.target;
+    if(target && target.tagName === 'OPTION'){
+      chosen.add(target.value);
+      renderTeacherOptions();
+    }
+  });
+
+  $btnAdd.addEventListener('click', ()=>{
+    for(const opt of [...$teachers.selectedOptions]){
+      chosen.add(opt.value);
+    }
+    renderTeacherOptions();
+  });
+  $btnRemove.addEventListener('click', ()=>{
+    if(chosen.size){ chosen.delete([...chosen].pop()); renderTeacherOptions(); }
+  });
+  $btnClearSel.addEventListener('click', ()=>{ chosen.clear(); renderTeacherOptions(); });
+
+  document.querySelectorAll('.dayBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.dayBtn').forEach(b=>b.setAttribute('aria-pressed','false'));
+      btn.setAttribute('aria-pressed','true');
+      state.day = btn.dataset.day;
+    });
+  });
+  document.querySelectorAll('.policyBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.policyBtn').forEach(b=>b.setAttribute('aria-pressed','false'));
+      btn.setAttribute('aria-pressed','true');
+      state.policy = btn.dataset.policy;
+    });
+  });
+  document.getElementById('ignoreCoTeach').addEventListener('change', e=> state.ignoreCoTeach = e.target.checked);
+  document.getElementById('excludeSupport').addEventListener('change', e=> state.excludeSupport = e.target.checked);
+
+  $btnGenerate.addEventListener('click', ()=>{
+    if(!records.length){ alert('Primero carga el archivo de horarios (TSV).'); return; }
+    const abs = [...chosen];
+    const rows = computeCoverage(records, {day: state.day, absents: abs, policy: state.policy, excludeSupport: state.excludeSupport, ignoreCoTeach: state.ignoreCoTeach});
+    renderTable(rows);
+    $btnExport.disabled = rows.length===0;
+    const resumen = `${dayNames[state.day]} — ${rows.length} clase(s) a cubrir · Política: ${state.policy.toUpperCase()}${state.ignoreCoTeach?' (co-docencia cubierta)':''}${state.excludeSupport?' · sin APOYO/ÁMBITO':''} · recreos excluidos`;
+    $summary.textContent = resumen;
+  });
+
+  function renderTable(rows){
+    $tbody.innerHTML='';
+    if(rows.length===0){
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan=7; td.className='muted'; td.textContent='No hay clases a cubrir con los criterios actuales.';
+      tr.appendChild(td); $tbody.appendChild(tr); return;
+    }
+    for(const r of rows){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${slotToLabel(r.Hora)}</strong></td>
+        <td>${r.Grupo}</td>
+        <td>${r.Aula||''}</td>
+        <td class="danger">${r.Docentes_ausentes||'—'}</td>`;
+      $tbody.appendChild(tr);
+    }
+  }
+
+  $btnExport.addEventListener('click', ()=>{
+    const abs = [...chosen];
+    const rows = computeCoverage(records, {day: state.day, absents: abs, policy: state.policy, excludeSupport: state.excludeSupport, ignoreCoTeach: state.ignoreCoTeach});
+    const csv = toCSV(rows);
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `coberturas_${state.day}_${state.policy}${state.ignoreCoTeach?'_nocoteach':''}${state.excludeSupport?'_noapoyo':''}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  </script>
+</body>
+</html>
